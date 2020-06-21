@@ -101,52 +101,54 @@ def decrypt_message(ciphertextb64, id):
 
 
 def _id(id, client, addr):
-    if id == 0:  # wysylamy protokol o id=1
-        print("------------------------------")
+    if id == 0:  # klient przywitał się z serwerem protokolem: 0/MCM/1.1\r\n000\r\nContent-length\r\n\r\nHELLO
+        print("---------------------------------- 0 ----------------------------------")
         print("Client " + str(len(array_clients)) + " sent new protocol message with id = " + str(id))
 
         protocol_client_0 = receive_by_one_byte(client)
-        print("Client's protocol: " + str(id) + " " + protocol_client_0)
+        print("Client's protocol: " + str(protocol_client_0.split()))
 
-        content_length = int(protocol_client_0.split()[
-                                 1])  # splituję w celu wyodrębnienia wartości Content-Length przesyłanej w protokole
+        content_length = int(protocol_client_0.split()[2])  # splituję w celu wyodrębnienia wartości Content-Length przesyłanej w protokole
+        print("Content length: ", content_length)
 
         message_client_0 = receive_by_content_length(content_length, client)
         print("Message: " + message_client_0)
 
-        session_id = len(array_clients)
-        # ALGORYTM DIFFIEGO HELLMANA
+        # ----------- ALGORYTM DIFFIEGO HELLMANA -----------
         p = prime_number()  # p - serwer ustawia liczbę p(liczba pierwsza) dla serwera i klienta
-        g = primitive_root(
-            p)  # g - serwer ustawia liczbę g(podstawę - pierwiastek pierwotny modulo p) dla serwera i klienta
+        g = primitive_root(p)  # g - serwer ustawia liczbę g(podstawę - pierwiastek pierwotny modulo p) dla serwera i klienta
         secret_key = random.randint(5, 1000)  # ustalenie tajnej liczby całkowitej tylko dla serwera(a)
-        result_DH = (g ** secret_key) % p  # wynik algorytmu Diffiego Hellmana (A = g^a mod p)
-        array_clients.append(
-            Client(g, p, secret_key, client, addr, session_id))  # dodaję klienta do tablicy wszystkich klientów(graczy)
+        result_DH = (g ** secret_key) % p  # wynik algorytmu Diffiego Hellmana(A = g^a mod p)
+        # --------------------------------------------------
+        print("------ Algorytm Diffiego Hellmana ------\nP=" + str(p) + " - liczba pierwsza\nG=" + str(g) + " - podstawa(pierwiastek pierwotny modulo p)\nSERVER_RESULT=" + str(result_DH) + " - wynik algorytmu DH(A = g^a mod p)")
+
+        session_id = len(array_clients)
+        array_clients.append(Client(g, p, secret_key, client, addr, session_id))  # dodaję klienta do tablicy wszystkich klientów(graczy)
 
         data = "HELLO\r\n" + str(p) + "\r\n" + str(g) + "\r\n" + str(result_DH) + "\r\n" + str(session_id)
         protocol = "1/JD/1.1\r\n" + str(session_id) + "\r\n" + str(len(data)) + "\r\n\r\n"
         client.send((protocol + data).encode())
-        print("WYSLALANO DO KLIENTA " + str(len(array_clients)) + " PROTOKOL nr 1" + "\n" + protocol.replace("\r\n",
-                                                                                                             " ") + data.replace(
-            "\r\n", " "))
-        print("P=" + str(p) + " G=" + str(g) + " SERVER_RESULT=" + str(result_DH))
-        print("------------------------------")
-    elif id == 1:
-        print("------------------------------")
-        protocol_client_1 = receive_by_one_byte(client)
-        print("Client " + str(protocol_client_1.split()[1]) + " sent: " + str(id) + " " + protocol_client_1)
+        print("----------------------------------------")
+        print("Wyslano do klienta o id " + str(session_id) + " protokol nr 1: " + protocol.replace("\r\n", " ") + data.replace("\r\n", " "))
 
-        session_id = int(protocol_client_1.split()[1])  # splituję, żeby wyodrębnić session_id oraz content-length
-        content_length = int(protocol_client_1.split()[2])
+        print("---------------------------------- 0 ----------------------------------")
+    elif id == 1:
+        print("---------------------------------- 1 ----------------------------------")
+
+        protocol_client_1 = receive_by_one_byte(client)
+        session_id = int(protocol_client_1.split()[1]) # splituję, żeby wyodrębnić session_id
+        print("Client " + str(protocol_client_1.split()[1]) + " sent new protocol message with id = " + str(id))
+        print("Client's protocol: " + str(protocol_client_1.split()))
+
+        content_length = int(protocol_client_1.split()[2]) # splituję, żeby wyodrębnić content-length
+        print("Content length: ", content_length)
 
         message_client_1 = receive_by_content_length(content_length, client)
-        print("Message content: " + message_client_1)
+        print("Message: " + message_client_1)
 
         client_result = int(message_client_1.split()[0])
-        array_clients[session_id].s = (client_result ** array_clients[session_id].secret_key) % array_clients[
-            session_id].p
-        print("Value of S: " + str(array_clients[session_id].s) + " - encrypting value of AES's key")
+        array_clients[session_id].s = (client_result ** array_clients[session_id].secret_key) % array_clients[session_id].p
+        print("S: " + str(array_clients[session_id].s) + " - encrypting value of AES's key")
 
         finally_aes_key = ''
         a = str(array_clients[session_id].s)
@@ -154,12 +156,11 @@ def _id(id, client, addr):
             finally_aes_key += a[i % len(a)]
 
         array_clients[session_id].aes_key = finally_aes_key
-        print("FINALLY AES KEY: ", array_clients[session_id].aes_key)
-
+        print("AES key: ", array_clients[session_id].aes_key)
+        print("---------------------------------- 1 ----------------------------------")
 
 def new_thread(client, addr):
-    id = int(client.recv(
-        1).decode())  # pobieramy tylko pierwszy bajt wiadomosci protokolu, czyli ID. protokol wyglada: "0/JD/1.1\r\n...."
+    id = int(client.recv(1).decode())  # pobieramy tylko pierwszy bajt wiadomosci protokolu, czyli ID. protokol wyglada: "0/JD/1.1\r\n...."
 
     _id(id, client, addr)
 
@@ -167,9 +168,11 @@ def new_thread(client, addr):
 
     _id(id, client, addr)
 
+    print("-----------------------------------------------------------------------")
 
 def create_protocol4(player, turn):
     encrypted_message = encrypt_message(turn, player.id)
+    print("Encrypted value of whom shout(who now): ", encrypted_message)
     return "4/JD/1.1\r\n" + str(player.id) + "\r\n" + str(len(encrypted_message)) + "\r\n\r\n" + encrypted_message
 
 
@@ -186,73 +189,85 @@ while True:
     server.listen(5)
 
     cl, addr = server.accept()
-    print("CONNECTED NEW PLAYER ABOUT ID: " + str(len(array_clients)) + "\nIP: " + addr[0])
+    print("-----------------------------------------------------------------------")
+    print("Connected new player!\nID: " + str(len(array_clients)) + "\nIP: " + addr[0])
 
     thread.start_new_thread(new_thread, (cl, addr))
     time.sleep(2)
 
     if len(array_clients) == 4:
         counter_moves = 0
+        print("#########################################################################################################")
+        print("############################################# ZACZYNAMY GRE #############################################")
+        print("#########################################################################################################")
+        print("                                     NASTEPUJE SZYFROWANIE WIADOMOSCI                                    ")
         while True:
             rolled = 0
-            print("-------------")
-            print("ZACZYNAMY GRE")
-            for player_who_turn in array_clients:
-                protocol4 = create_protocol4(player_who_turn, who_turn)  # kogo tura wysylanie
+            print("\n                                                                                    RUCH GRACZA - ", who_turn)
+            print("------ WYSYLANIE INFORMACJI KOGO RUCH ------")
+            for player_who_turn in array_clients: # wysyłanie protokołu 4 - 4/JD/1.1\r\nsession-id\r\ncontent-length\r\n\r\nAES(KOGO RUCH)
+                protocol4 = create_protocol4(player_who_turn, who_turn)  # wysylanie kogo tura
                 player_who_turn.client.send(protocol4.encode())
-            print("Elo")
+                print("Sent to client about id " + str(player_who_turn.id) + " protocol nr 4: " + protocol4.replace("\r\n"," "))
+            print("--------------------------------------------")
+
             index = int(who_turn)
-            # while True:
             player = array_clients[index]
 
-            id_message = int(player.client.recv(1).decode())
+            id_message = int(player.client.recv(1).decode()) # pobranie wiadomosci od gracza, którego jest obecnie tura
             if id_message:
-                print(id_message)
                 if id_message == 5:  # odebralem 5/JD1.1
                     protocol_client_5 = receive_by_one_byte(player.client)
 
-                    print("Client's protocol: " + protocol_client_5)
-                    print("ZESPLITOWANE: ", protocol_client_5.split())
                     id_player = int(protocol_client_5.split()[1])
-                    content_length = int(protocol_client_5.split()[
-                                             2])  # splituję w celu wyodrębnienia wartości Content-Length przesyłanej w protokole
+                    content_length = int(protocol_client_5.split()[2])  # splituję w celu wyodrębnienia wartości Content-Length przesyłanej w protokole
+
+                    print("Player " + str(id_player) + " sent new protocol message with id = " + str(id_message))
+                    print("Player's protocol: ", protocol_client_5.split())
 
                     message_client_5 = receive_by_content_length(content_length, player.client)
-                    print("Message content: " + message_client_5)
+                    print("Content length: ", content_length)
+                    print("Message: " + message_client_5)
                     result = decrypt_message(message_client_5, id_player)
                     result = result.split()[0]
-                    print("Client msg: ", result)
+                    print("Decrypted message(by AES ECB): ", result)
 
                     if result == "ROLL":
+                        print("------------- LOSOWANIE LICZBY -------------")
+
                         rolled = str(roll())
-                        print("WYLOSOWALEM: ", rolled)
+                        print("ROLLED NUMBER: ", rolled)
                         rolled_value = encrypt_message(rolled, player.id)
-                        msg_to_send_roll = "5/JD.1.1\r\n" + str(player.id) + "\r\n" + str(
-                            len(str(rolled_value))) + "\r\n\r\n" + rolled_value
+                        print("Encrypted roll value: ", rolled_value)
+                        msg_to_send_roll = "5/JD.1.1\r\n" + str(player.id) + "\r\n" + str(len(str(rolled_value))) + "\r\n\r\n" + rolled_value
 
                         player.client.send(str(msg_to_send_roll).encode())
-                        print("WYSLALEM + aes ", str(msg_to_send_roll))
+                        print("Sent to client about id " + str(player.id) + " protocol nr 5: ", msg_to_send_roll.replace("\r\n"," "))
+                        print("--------------------------------------------")
 
                         id_message_6 = int(player.client.recv(1).decode())
-                        print("ALE WIADOMOSC:", id_message_6)
                         if id_message_6 == 6:
                             protocol_client_6 = receive_by_one_byte(player.client)
-                            print("PROTOKOL 6: ", protocol_client_6)
-
                             content_length = int(protocol_client_6.split()[2])
+
+                            print("Player ", protocol_client_6.split()[1] ," sent new protocol message with id = " + str(id_message_6))
+                            print("Player's protocol: ", protocol_client_6.split())
 
                             message_client_6 = receive_by_content_length(content_length, player.client)
                             message_client_6 = decrypt_message(message_client_6, player.id).split()[0]
-                            print("MESSAGE 6: ", message_client_6)
-                            # SKONCZYLISMY TUTAJ, KLIENT MUSI PRZESLAC POZYCJE PIONKOW DO SERWERA(JAK TO ZROBIC?)
+                            print("Content length: ", content_length)
+                            print("Message: " + message_client_6)
 
+                            print("----- WYSYLANIE INFORMACJI O PIONKACH -----")
                             for a in array_clients:
                                 if a != player:
                                     msg_roll_pozycje_pionkow = rolled + "\r\n" + message_client_6
                                     msg_roll_pozycje_pionkow = encrypt_message(msg_roll_pozycje_pionkow, a.id)
+                                    print("Encrypted message: ", msg_roll_pozycje_pionkow)
                                     fullmsg_protcol_roll_pozycje_pionkow = "7/JD.1.1\r\n" + str(a.id) + "\r\n" + str(len(msg_roll_pozycje_pionkow)) + "\r\n\r\n" + msg_roll_pozycje_pionkow
                                     a.client.send(fullmsg_protcol_roll_pozycje_pionkow.encode())
-                                    print("WYSLALEM WIADOMOSC O POZYCJACH I ROLLU DO INNYCH")
+                                    print("Sent to client about id " + str(a.id) + " protocol nr 7: ", fullmsg_protcol_roll_pozycje_pionkow.replace("\r\n"," "))
+                            print("-------------------------------------------")
             if counter_moves < 2 and rolled == "6":
                 counter_moves += 1
             else:

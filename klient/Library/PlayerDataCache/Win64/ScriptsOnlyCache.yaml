@@ -13,6 +13,7 @@ ScriptsOnlyBuild:
     - RedHome
     - RedPlayer
     - RollowanieKostka
+    - UIController
     - ValidateInput
     - YellowHome
     - YellowPlayer
@@ -199,6 +200,8 @@ ScriptsOnlyBuild:
       Script: {instanceID: 13328}
     - Class: 114
       Script: {instanceID: 13414}
+    - Class: 114
+      Script: {instanceID: 274038}
     - Class: 115
       Script: {instanceID: 0}
     - Class: 128
@@ -858,6 +861,12 @@ ScriptsOnlyBuild:
     assemblyName: Unity.Timeline.dll
     namespaceName: UnityEngine.Timeline
     className: PlayableTrack
+  - hash:
+      serializedVersion: 2
+      Hash: 41f5c94791e61df5cf9360cfd14120bf
+    assemblyName: Assembly-CSharp.dll
+    namespaceName: 
+    className: UIController
   platform: 19
   scenePathNames:
   - Assets/Scenes/MainMenu.unity

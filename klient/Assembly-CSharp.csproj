@@ -79,6 +79,7 @@
     <Compile Include="Assets\Scripts\Players\YellowPlayer.cs" />
     <Compile Include="Assets\Scripts\RollowanieKostka.cs" />
     <Compile Include="Assets\Scripts\SoundManager.cs" />
+    <Compile Include="Assets\UIController.cs" />
     <Compile Include="Assets\ValidateInput.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/Jakub/Desktop/ludoGame/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>

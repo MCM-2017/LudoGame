@@ -27,32 +27,27 @@ public class NetworkManager : MonoBehaviour
     byte[] key;
     // -----------------------------------------------
 
-
-    void send_message_0_1(int i)
+    void send_message_0()
     {
-        byte[] msgtosend;
-        if (i == 0)
-        {
-            // SENDING PROTCOL "0/JD/1.1\r\nNOTNECESSERYVALUE\r\ncontent-length\r\n\r\ncontent"
-            msgtosend = Encoding.UTF8.GetBytes("0/JD/1.1\r\n5\r\n\r\nHELLO"); //creating msg to send to server 
+        // SENDING PROTCOL "0/JD/1.1\r\nNOTNECESSERYVALUE\r\ncontent-length\r\n\r\ncontent"
+        byte[] msgtosend = Encoding.UTF8.GetBytes("0/JD/1.1\r\n000\r\n5\r\n\r\nHELLO"); //creating msg to send to server 
+        Debug.Log("SENDING: " + Encoding.ASCII.GetString(msgtosend, 0, msgtosend.Length));
+        stream.Write(msgtosend, 0, msgtosend.Length); //wysylanie wiadomosci
+    }
+    void send_message_1()
+    {
+        // SENDING PROTCOL "1/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent"
+        byte[] msgtosend = Encoding.UTF8.GetBytes("1/JD/1.1\r\n" + session_id.ToString() + "\r\n" + result_DH.ToString().Length + "\r\n\r\n" + result_DH.ToString());
+        stream.Write(msgtosend, 0, msgtosend.Length);
+    }
 
-            Debug.Log("SENDING: " + Encoding.ASCII.GetString(msgtosend, 0, msgtosend.Length));
-            stream.Write(msgtosend, 0, msgtosend.Length); //wysylanie wiadomosci
-        }
-        else if(i == 1)
-        {
-            // SENDING PROTCOL "1/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent"
-            msgtosend = Encoding.UTF8.GetBytes("1/JD/1.1\r\n" + session_id.ToString() + "\r\n" + result_DH.ToString().Length + "\r\n\r\n" + result_DH.ToString());
-            stream.Write(msgtosend, 0, msgtosend.Length);
-        }
-        else if(i == 5) // prośba o rolla
-        {
-            // SENDING PROTCOL "5/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent"
-            string encrypted_msg = Encrypt("ROLL\r\n", key);
-            Debug.Log("jestem w 5");
-            msgtosend = Encoding.UTF8.GetBytes("5/JD/1.1\r\n" + session_id.ToString() + "\r\n" + encrypted_msg.Length + "\r\n\r\n" + encrypted_msg);
-            stream.Write(msgtosend, 0, msgtosend.Length);
-        }
+    void send_message_5()
+    { 
+        // SENDING PROTCOL "5/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent"
+        string encrypted_msg = Encrypt("ROLL\r\n", key);
+        Debug.Log("jestem w 5");
+        byte[] msgtosend = Encoding.UTF8.GetBytes("5/JD/1.1\r\n" + session_id.ToString() + "\r\n" + encrypted_msg.Length + "\r\n\r\n" + encrypted_msg);
+        stream.Write(msgtosend, 0, msgtosend.Length);
     }
     void send_message_6(string a)
     {
@@ -76,76 +71,82 @@ public class NetworkManager : MonoBehaviour
             finally_aes_key += a[i % a.Length];
         return finally_aes_key;
     }
+    string receive_by_one_bytes()
+    {
+        string protocol = "";
+        while (protocol.IndexOf("\r\n\r\n") == -1)
+        {
+            string data = receive_one_byte();
+            protocol += data;
+        }
+        return protocol;
+    }
+    string receive_untill_content_length(int content_length)
+    {
+        int counter = 0;
+        string server_message = "";
+        while (counter < content_length)
+        {
+            server_message += receive_one_byte();
+            counter++;
+        }
+        return server_message;
+    }
 
     // Start is called before the first frame update
     void Start() // funkcja połączenia z serwerem
     {
+        // ------------------------------------------------------------------------------------------------------------ START CONNECTING
         clientSocket.Connect(hostname, port);
-
-        Debug.Log("--------------------------");
-        Debug.Log("WELCOME TO LUDO GAME");
         
         stream = clientSocket.GetStream(); // tworzenie NetworkStream - obiekt zapewniający źródłowy strumień danych dla dostępu do sieci
 
-        send_message_0_1(0); // wysłanie wiadomości 1. HELLO
+        send_message_0(); // przywitanie się z serwerem, protokół: 0/MCM/1.1\r\n000\r\n
 
-        string id_server_message = receive_one_byte();
+        string id_server_message = receive_one_byte(); // pobranie pierwszej liczby protokołu: 1/MCM/1.1\r\nsession-id\r\ncontent-length\r\n\r\nMESSAGE
 
+        // ------------------------------------------------------------------------------------------------------------ RECEIVE 1/MCM/1.1\r\nsession-id\r\ncontent-length\r\n\r\nMESSAGE
         if (id_server_message == "1")
         {
-            string protocol = "";
-            while(protocol.IndexOf("\r\n\r\n") == -1)
-            {
-                string data = receive_one_byte();
-                protocol += data;
-            }
+            string protocol = receive_by_one_bytes(); // FUNKCJA - pobieranie po 1 bajcie protokolu
             string[] separator = { "\r\n" };
             string[] splitted_protocol = protocol.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
-            int content_length = Convert.ToInt32(splitted_protocol[2]);
+            int content_length = Convert.ToInt32(splitted_protocol[2]); // wyodrębnienie z protokołu content-length
             int counter = 0;
-            string server_message = "";
-            while(counter < content_length)
-            {
-                server_message += receive_one_byte();
-                counter++;
-            }
 
+            string server_message = receive_untill_content_length(content_length);
             string[] splitted_message = server_message.Split('\n');
-
-            for (int i = 0; i < splitted_message.Length; i++)
-                Debug.Log("AA: " + splitted_message[i]);
      
-            p = Convert.ToInt32(splitted_message[1]); // wyodrębnianie wartości do protokołu DH                                                   //
-            g = Convert.ToInt32(splitted_message[2]);                                                                                             //
-            server_result = Convert.ToInt32(splitted_message[3]);
-            session_id = Convert.ToInt16(splitted_message[4]);
+            // ALGORYTM DIFFIEGO HELLMANA ///////////////////////////////////////////////////////
+            p = Convert.ToInt32(splitted_message[1]); // wyodrębnianie wartości do protokołu DH//                                                   
+            g = Convert.ToInt32(splitted_message[2]);                                          //   
+            server_result = Convert.ToInt32(splitted_message[3]);                              //
+            session_id = Convert.ToInt16(splitted_message[4]);                                 //
+            /////////////////////////////////////////////////////////////////////////////////////
 
             GameManager.gm.My_ID = session_id; // ustanowienie ID w GameManagerze
-
-            Debug.Log("P=" + p + " G=" + g + " SERVER_RESULT=" + server_result + "SESSION_ID=" + session_id);
-
+            
+            // LOSOWANIE SECRET KEY
             System.Random r = new System.Random();
             int secret_key = r.Next(5, 1001);
-            Debug.Log("SECRET KEY: " + secret_key);
 
-            result_DH = powerStrings(g.ToString(), secret_key.ToString(), p);
-            Debug.Log("RESULT DH CLIENT: " + result_DH);
+            // A = g^secret_key mod p
+            result_DH = powerStrings(g.ToString(), secret_key.ToString(), p); 
 
+            // S = server_result^secret_key mod p
             long s = powerStrings(server_result.ToString(), secret_key.ToString(), p);
 
-            Debug.Log("S= " + s);
-            Debug.Log("-----------------------");
-
+            // GENEROWANIE AES KEY
             string aes_key = create_aes_key(s);
-            Debug.Log("FINALLY AES KEY: " + aes_key);
 
             key = Encoding.ASCII.GetBytes(aes_key);
 
             Debug.Log("-----------------------");
         }
 
-        send_message_0_1(1); // SENDING PROTCOL "1/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent" 
+        // ------------------------------------------------------------------------------------------------------------ SENDING PROTCOL "1/JD/1.1\r\nsession_id\r\ncontent-length\r\n\r\ncontent" 
+        send_message_1(); // 
         Thread thread = new Thread(StartGame);
         thread.Start();
     }
@@ -217,7 +218,6 @@ public class NetworkManager : MonoBehaviour
         csp.BlockSize = 128;
         csp.Key = key;
         csp.Padding = PaddingMode.PKCS7;
-        //csp.Mode = CipherMode.ECB;
         csp.Mode = CipherMode.ECB;
 
         ICryptoTransform encrypter = csp.CreateEncryptor();
@@ -227,57 +227,25 @@ public class NetworkManager : MonoBehaviour
         return str;
     }
 
-    public static void PadToMultipleOf(ref byte[] src, int pad)
-    {
-        int len = (src.Length + pad - 1) / pad * pad;
-        Array.Resize(ref src, len);
-    }
-
-    public static byte[] ConvertHexStringToByteArray(string hexString)
-    {
-        if (hexString.Length % 2 != 0)
-        {
-            throw new ArgumentException(String.Format(CultureInfo.InvariantCulture, "The binary key cannot have an odd number of digits: {0}", hexString));
-        }
-
-        byte[] HexAsBytes = new byte[hexString.Length / 2];
-        for (int index = 0; index < HexAsBytes.Length; index++)
-        {
-            string byteValue = hexString.Substring(index * 2, 2);
-            HexAsBytes[index] = byte.Parse(byteValue, NumberStyles.HexNumber, CultureInfo.InvariantCulture);
-        }
-
-        return HexAsBytes;
-    }
-
     public void StartGame()
-    {   while (true)
+    {
+        while (true)
         {
             GameManager.gm.aktualny_pionek = -1;
             GameManager.gm.Kostki[session_id].isRollingNow = false;
-            //GameManager.gm.Kostki[session_id].finalSide = 0;
+
             string message_id = "";
             message_id = receive_one_byte();
 
             if (Convert.ToInt16(message_id) == 4)
             {
-                string protocol = "";
-                while (protocol.IndexOf("\r\n\r\n") == -1)
-                {
-                    string data = receive_one_byte();
-                    protocol += data;
-                }
+                string protocol = receive_by_one_bytes(); // RECEIVE MESSAGE BY ONE BYTE
                 string[] separator = { "\r\n" };
                 string[] splitted_protocol = protocol.Split(separator, StringSplitOptions.RemoveEmptyEntries);
 
                 int content_length = Convert.ToInt32(splitted_protocol[2]);
-                int counter = 0;
-                string server_message = "";
-                while (counter < content_length)
-                {
-                    server_message += receive_one_byte();
-                    counter++;
-                }
+
+                string server_message = receive_untill_content_length(content_length);
                 string decrypted_message = Decrypt(server_message, key);
                 GameManager.gm.WhoNow = Convert.ToInt16(decrypted_message);
 
@@ -285,7 +253,7 @@ public class NetworkManager : MonoBehaviour
                 {
                     GameManager.gm.Kostki[GameManager.gm.My_ID].canRoll = true;
                     GameManager.gm.Kostki[GameManager.gm.My_ID].finalSide = 0;
-                    send_message_0_1(5); // prosba o rolla
+                    send_message_5(); // prosba o rolla
 
                     string id_rolled_value = receive_one_byte();
                     Debug.Log("DOSTALEM 5: " + id_rolled_value);
@@ -314,29 +282,20 @@ public class NetworkManager : MonoBehaviour
 
                         GameManager.gm.debuglog.text = decrypted_message_5;
                         GameManager.gm.Kostki[session_id].finalSide = Convert.ToInt16(decrypted_message_5);
+                        
 
-                        // WYKONALEM ROLLOWANIE I MOGLEM SIE RUSZYC
-
-                        //JESLI KLIKNAL GRACZ
-                        // czekanie na klikniecie gracza:
-                        //StartCoroutine("wait_for_dice", decrypted_message_5);
-                        while (GameManager.gm.Kostki[session_id].isRollingNow == false)
+                        while (GameManager.gm.Kostki[session_id].isRollingNow == false) // czekanie na klikniecie kostki
                         {
                         }
-                        //GameManager.gm.Kostki[session_id].isRollingNow = false;
                         GameManager.gm.debuglog.text = "aktualny pionek: " + GameManager.gm.aktualny_pionek.ToString();
                         GameManager.gm.aktualny_pionek = -1;
                         GameManager.gm.stepsToMove = Convert.ToInt32(decrypted_message_5);
                         GameManager.gm.aktualny_pionek = GameManager.gm.isPossibleMove();
-                        while (GameManager.gm.aktualny_pionek == -1)
+                        while (GameManager.gm.aktualny_pionek == -1) // czekanie na klikniecie pionkiem
                         {
                         }
                         send_message_6(GameManager.gm.aktualny_pionek.ToString() + "\r\n" + decrypted_message_5);
                         GameManager.gm.aktualny_pionek = -1;
-
-                        Debug.Log("siema");
-
-                        
                     }
                 }
                 else
