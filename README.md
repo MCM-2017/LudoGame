@@ -14,3 +14,14 @@ Na potrzeby projektu stworzyliśmy własny protokół o nazwie "<b>MCM</b>" dzi�
 <p align="center">
   <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/komunikacja.png">
 </p>
+
+# Zrzuty ekranów z gry
+<p align="center">
+  <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/zdj1.png">
+</p>
+<p align="center">
+  <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/zdj2.png">
+</p>
+<p align="center">
+  <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/zdj3.png">
+</p>
