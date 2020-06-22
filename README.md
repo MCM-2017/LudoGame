@@ -12,7 +12,7 @@ Na potrzeby projektu stworzyliśmy własny protokół o nazwie "<b>MCM</b>" dzi�
 
 ## Komunikacja klient-serwer oraz protokół
 <p align="center">
-  <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/komunikacja.png">
+  <img src="https://github.com/MCM-2017/LudoGame/blob/master/materialy/komunikacja2.png">
 </p>
 
 # Zrzuty ekranów z gry
